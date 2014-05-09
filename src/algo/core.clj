@@ -59,22 +59,12 @@
   (count 
     (filter #(< % num) (vec (nth (split-at position vect) 1)))))
 
-(defn algo-1-brt-frc-invs
-  "Input: {:ok [1...10]} || {:error ...}"
-  [input] 
-  (cond 
-    (contains? input :ok)
-      (let 
-        [ vect (:ok input)
-          inversions (reduce + (for [x (range (count vect))] (inversions (nth vect x) x vect))) ] 
-        ;return
-        {:ok {:inversions inversions}})
-    (contains? input :error)
-      ;return
-      input
-    :else
-      ;return
-      input))
+(defn brt-frc-invs
+  "Input:[]
+   Output:{:ok ...}"
+  [vect]
+  {:ok {:inversions 
+    (reduce + (for [x (range (count vect))] (inversions (nth vect x) x vect)))}})
 
 ; based on http://blog2samus.tumblr.com/post/20763915302/playing-with-merge-sort-in-clojure
 ; this is the tail recursive version
@@ -86,9 +76,9 @@
     (let [x (first xs) y (first ys)]
     (cond
       (nil? x)
-        (concat result ys)
+        (vec (concat result ys))
       (nil? y) 
-        (concat result xs)
+        (vec (concat result xs))
       :else 
         (if (< x y)
           ;than
@@ -98,6 +88,7 @@
  
 (defn mrg-srt
   [xs]
+  ;(println (type xs))
   (let 
   [cnt-xs (count xs)]
     (cond
@@ -108,39 +99,34 @@
           [ [left right] (split-at (quot cnt-xs 2) xs) ]
           (mrg (mrg-srt left) (mrg-srt right))))))
 
-; 
-(defn merge-sort 
-  [options] 
-  (let [ input (:input options) coll (:coll options) ]
-    (if input
-      (if (and (not (nil? coll)) (= input "std"))
-        ;than
-        (mrg-srt (read-string coll))
-      ;:else
-      (let
-        [data (string-to-vec (read-file input))]
-        (mrg-srt data))))))
+(defn dispatch-algo [fun] 
+  (fn [options] 
+    (let [ input (:input options) coll (:coll options) ]
+      (cond
+        (and (not (nil? coll)) (= input "std"))
+          (fun (read-string coll))
+        ;defaulting to reading the input file
+        :else
+          (let
+            [data (string-to-vec (read-file input))]
+            (cond
+              (contains? data :ok)
+                (fun (:ok data))
+              :else
+                ;if the file reading returns an error
+                data))))))
 
-(defn algo-1-brute-force-inversions
-  [options]
-  (let [ input (:input options) coll (:coll options) ]
-    (if input
-      (if (and (not (nil? coll)) (= input "std"))
-        ;than
-        (algo-1-brt-frc-invs {:ok coll})
-      ;else
-      (let 
-        [data (string-to-vec (read-file input))]
-          (algo-1-brt-frc-invs data)))
-  ;else
-  (println "Missing input option..."))))
+(def brute-force-inversions 
+  (dispatch-algo brt-frc-invs))
+(def merge-sort 
+  (dispatch-algo mrg-srt))
 
 (defn algo-1 
   [options]
   (let [fn-typ (:type options)]
   (cond
-    (= fn-typ "algo-1-brute-force-inversions")
-      (algo-1-brute-force-inversions options)
+    (= fn-typ "brute-force-inversions")
+      (brute-force-inversions options)
     (= fn-typ "merge-sort")
       (merge-sort options)
     :else
@@ -182,6 +168,7 @@
 
 (defn -main [& args]
   (let [ {:keys [options arguments errors summary]} (parse-opts args cli-options) ]
+    (println options)
     ; Handle help and error conditions
     (cond
       (:help options)

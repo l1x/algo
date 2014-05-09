@@ -10,11 +10,11 @@
     [clj-http               "0.9.1"]
     [org.clojure/data.json  "0.2.4"]
   ]
-  :profiles {
-    :uberjar {
-      :aot :all
-    }
-  }
+  ;:profiles {
+  ;  :uberjar {
+  ;    ;:aot :all
+  ;  }
+  ;}
   :jvm-opts [
     "-Xms256m" "-Xmx512m" "-server" "-XX:MaxPermSize=128m"
     "-XX:NewRatio=2" "-XX:+UseConcMarkSweepGC"
