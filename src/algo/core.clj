@@ -99,7 +99,49 @@
           [ [left right] (split-at (quot cnt-xs 2) xs) ]
           (mrg (mrg-srt left) (mrg-srt right))))))
 
-(defn dispatch-algo [fun] 
+;1:1 sicp lisp -> clojure
+(defn cnt-cng 
+  [coll]
+  (let [[amount] coll]
+  (defn first-denom [kinds-of-coins]
+    (cond (= kinds-of-coins 1) 1
+          (= kinds-of-coins 2) 5
+          (= kinds-of-coins 3) 10
+          (= kinds-of-coins 4) 25
+          (= kinds-of-coins 5) 50))
+  (defn cc 
+    [amount kinds-of-coins]
+    (cond (= amount 0) 1
+          (or (< amount 0)
+              (= kinds-of-coins 0)) 0
+          :else (+ (cc amount (- kinds-of-coins 1))
+                   (cc (- amount 
+                          (first-denom kinds-of-coins))
+                       kinds-of-coins))))
+  
+  [(cc amount 5)]))
+
+;the number of ways giving change for x with coins '(1 5...)
+;(+ 
+;   the number of ways giving change for x with the rest of the coins
+;   the number of ways giving change for (- x (first coins)) coins)
+(defn cnt-cng-2 
+  [x coins]
+  (let [fst (first coins) rst (rest coins)]
+    (cond
+      (empty? coins) 
+        0
+      (< x 0) 
+        0
+      (zero? x) 
+        1
+      :else (+
+      ;could be recur? 
+       (change x rst) 
+       (change (- x fst) coins)))))
+
+(defn dispatch-fn 
+  [fun] 
   (fn [options] 
     (let [ input (:input options) coll (:coll options) ]
       (cond
@@ -117,11 +159,13 @@
                 data))))))
 
 (def brute-force-inversions 
-  (dispatch-algo brt-frc-invs))
+  (dispatch-fn brt-frc-invs))
 (def merge-sort 
-  (dispatch-algo mrg-srt))
+  (dispatch-fn mrg-srt))
+(def count-change
+  (dispatch-fn cnt-cng))
 
-(defn algo-1 
+(defn route
   [options]
   (let [fn-typ (:type options)]
   (cond
@@ -129,10 +173,10 @@
       (brute-force-inversions options)
     (= fn-typ "merge-sort")
       (merge-sort options)
+    (= fn-typ "count-change")
+      (count-change options)
     :else
       "This never happens!")))
-
-
 ;; CLI
 
 (defn print-config
@@ -161,7 +205,8 @@
         options-summary
         ""
         "Actions:"
-        "  algo-1         Executes the first assignment"
+        "  algo-1         Collection of Algo-I assignments"
+        "  sicp           SICP examples"
         ""
         "Please refer to the readme for more information."]
        (string/join \newline)))
@@ -179,7 +224,9 @@
     ; Execute program with options
     (case (first arguments)
       "algo-1"
-        (println (algo-1 options))
+        (println (route options))
+      "sicp"
+        (println (route options))
       ;default
         (exit 1 (usage summary)))))
 
