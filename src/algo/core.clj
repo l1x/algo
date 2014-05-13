@@ -70,21 +70,22 @@
 ; this is the tail recursive version
 (defn mrg
   ;(mrg coll1 coll2) -> (mrg [] coll1 coll2)
-  ([xs ys] (mrg [] xs ys))
-  ;(mrg [] coll1 coll2)
-  ([result xs ys]
+  ([xs ys] (mrg 0 [] xs ys))
+  ;(mrg 0 [] coll1 coll2)
+  ([cnt result xs ys]
+    ;(println "mrg:: cnt: " cnt " result: " result " xs: " xs " ys: " ys)
     (let [x (first xs) y (first ys)]
     (cond
       (nil? x)
-        (vec (concat result ys))
+        [cnt (vec (concat result ys))]
       (nil? y) 
-        (vec (concat result xs))
+        [cnt (vec (concat result xs))]
       :else 
-        (if (< x y)
-          ;than
-          (recur (conj result x) (rest xs) ys)
+        (if (<= x y)
+          ;than  ;cnt               ;acc            ;xs       ;ys
+          (recur cnt                (conj result x) (rest xs) ys)
           ;else
-          (recur (conj result y) xs (rest ys)))))))
+          (recur (+ cnt (count xs)) (conj result y) xs        (rest ys)))))))
  
 (defn mrg-srt
   [xs]
@@ -92,12 +93,14 @@
   (let 
   [cnt-xs (count xs)]
     (cond
-      (> 2 cnt-xs) xs
-      (= 2 cnt-xs) (sort xs)
+      (> 2 cnt-xs) [0 xs]
       :else
         (let 
-          [ [left right] (split-at (quot cnt-xs 2) xs) ]
-          (mrg (mrg-srt left) (mrg-srt right))))))
+          [ [left right]  (split-at (quot cnt-xs 2) xs) 
+            [cntl xss]    (mrg-srt left)
+            [cntr yss]    (mrg-srt right) ]
+          ;merge
+          (mrg (+ cntl cntr) [] xss yss)))))
 
 ;1:1 sicp lisp -> clojure
 (defn cnt-cng 
@@ -119,33 +122,40 @@
                           (first-denom kinds-of-coins))
                        kinds-of-coins))))
   
-  [(cc amount 5)]))
+  (cc amount 5)))
 
 ;the number of ways giving change for x with coins '(1 5...)
 ;(+ 
 ;   the number of ways giving change for x with the rest of the coins
 ;   the number of ways giving change for (- x (first coins)) coins)
 (defn cnt-cng-2 
-  [x coins]
-  (let [fst (first coins) rst (rest coins)]
+  ([n] (cnt-cng-2 n (list 50 25 10 5 1)))
+  ([n coll] 
+  (let [ [x] n
+         coins coll
+         fst (first coins) 
+         rst (rest coins) ]
     (cond
-      (empty? coins) 
-        0
-      (< x 0) 
-        0
-      (zero? x) 
-        1
-      :else (+
-      ;could be recur? 
-       (change x rst) 
-       (change (- x fst) coins)))))
+      (empty? coins)  0
+      (< x 0)         0
+      (zero? x)       1
+      :else 
+      (+ (cnt-cng-2 [x] rst)
+         (cnt-cng-2 [(- x fst)] coins))))))
 
 (defn dispatch-fn 
+  ;This functions takes a name (fun) and returns a function with that name
+  ;this handles optionsi, example:
+  ;{:type typ, :input "std", :coll "[100]", 
+  ; :rst "{:coins [50 25 10 5 1]}" }
+  ; based on the options it calls the idempotent function with coll
   [fun] 
   (fn [options] 
-    (let [ input (:input options) coll (:coll options) ]
+    (let [ input (:input options) coll (:coll options) rst (:rst options) ]
       (cond
         (and (not (nil? coll)) (= input "std"))
+          ;this is supposed to be an the rest of the options (rst)
+          ;(fun [coll rst]))
           (fun (read-string coll))
         ;defaulting to reading the input file
         :else
@@ -153,6 +163,8 @@
             [data (string-to-vec (read-file input))]
             (cond
               (contains? data :ok)
+                ;this is supposed to be an the rest of the options (rst)
+                ;(fun [coll rst]))
                 (fun (:ok data))
               :else
                 ;if the file reading returns an error
@@ -162,8 +174,10 @@
   (dispatch-fn brt-frc-invs))
 (def merge-sort 
   (dispatch-fn mrg-srt))
-(def count-change
+(def count-change-sicp
   (dispatch-fn cnt-cng))
+(def count-change-clj
+  (dispatch-fn cnt-cng-2))
 
 (defn route
   [options]
@@ -173,8 +187,10 @@
       (brute-force-inversions options)
     (= fn-typ "merge-sort")
       (merge-sort options)
-    (= fn-typ "count-change")
-      (count-change options)
+    (= fn-typ "count-change-clj")
+      (count-change-clj options)
+    (= fn-typ "count-change-sicp")
+      (count-change-sicp options)
     :else
       "This never happens!")))
 ;; CLI
@@ -188,7 +204,8 @@
   [
     ["-i" "--input FILE" "Input file for processing" :default "/dev/null"]
     ["-t" "--type TYPE" "Algo type" :default "algo-1-brute-force"]
-    ["-c" "--coll COLLECTION" "Algo type" :default "[3 2 1]"]
+    ["-c" "--coll COLLECTION" "Vector or other coll type" :default "[3 2 1]"]
+    ["-r" "--rest {}" "Arbitrary HashMap" :default "{}"]
     ["-h" "--help" "Print the help"]
   ])
 
